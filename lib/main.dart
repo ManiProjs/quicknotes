@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -33,7 +34,9 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   final TextEditingController _controller = TextEditingController();
+  final FocusNode _inputFocusNode = FocusNode();
   List<Map<String, dynamic>> notes = [];
+  String searchQuery = '';
 
   Color selectedColor = const Color(0xFFD0E8FF);
 
@@ -139,12 +142,30 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
+    final filteredNotes = notes.where((note) {
+      final text = (note['text'] ?? '').toString().toLowerCase();
+      return text.contains(searchQuery.toLowerCase());
+    }).toList();
+
     return Scaffold(
       appBar: AppBar(title: const Text("Quick Notes")),
       body: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
           children: [
+            TextField(
+              decoration: const InputDecoration(
+                hintText: 'Search notes...',
+                prefixIcon: Icon(Icons.search),
+                border: OutlineInputBorder(),
+              ),
+              onChanged: (value) {
+                setState(() {
+                  searchQuery = value;
+                });
+              },
+            ),
+            const SizedBox(height: 12),
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
@@ -175,16 +196,33 @@ class _HomePageState extends State<HomePage> {
             Row(
               children: [
                 Expanded(
-                  child: TextField(
-                    controller: _controller,
-                    keyboardType: TextInputType.multiline,
-                    textInputAction: TextInputAction.newline,
-                    minLines: 1,
-                    maxLines: 5,
-                    decoration: const InputDecoration(
-                      hintText: "Write a note...",
-                      border: OutlineInputBorder(),
-                      alignLabelWithHint: true,
+                  child: Shortcuts(
+                    shortcuts: {
+                      SingleActivator(LogicalKeyboardKey.enter, shift: true):
+                          const ActivateIntent(),
+                    },
+                    child: Actions(
+                      actions: {
+                        ActivateIntent: CallbackAction<ActivateIntent>(
+                          onInvoke: (_) {
+                            addNote();
+                            return null;
+                          },
+                        ),
+                      },
+                      child: TextField(
+                        controller: _controller,
+                        focusNode: _inputFocusNode,
+                        keyboardType: TextInputType.multiline,
+                        textInputAction: TextInputAction.newline,
+                        minLines: 1,
+                        maxLines: 5,
+                        decoration: const InputDecoration(
+                          hintText: "Write a note...",
+                          border: OutlineInputBorder(),
+                          alignLabelWithHint: true,
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -196,25 +234,31 @@ class _HomePageState extends State<HomePage> {
             const SizedBox(height: 12),
 
             Expanded(
-              child: notes.isEmpty
+              child: filteredNotes.isEmpty
                   ? const Center(child: Text("No notes yet 💤"))
                   : ListView.builder(
-                      itemCount: notes.length,
+                      itemCount: filteredNotes.length,
                       itemBuilder: (context, index) {
                         return Dismissible(
-                          key: Key(notes[index]['text'] + index.toString()),
-                          onDismissed: (_) => deleteNote(index),
+                          key: Key(
+                            filteredNotes[index]['text'] + index.toString(),
+                          ),
+                          onDismissed: (_) =>
+                              deleteNote(notes.indexOf(filteredNotes[index])),
                           child: Card(
-                            color: Color(notes[index]['color']),
+                            color: Color(filteredNotes[index]['color']),
                             child: ListTile(
                               textColor: Theme.of(
                                 context,
                               ).colorScheme.onSecondaryContainer,
-                              title: Text(notes[index]['text']),
-                              onTap: () => editNote(index),
+                              title: Text(filteredNotes[index]['text']),
+                              onTap: () =>
+                                  editNote(notes.indexOf(filteredNotes[index])),
                               trailing: IconButton(
                                 icon: const Icon(Icons.delete),
-                                onPressed: () => deleteNote(index),
+                                onPressed: () => deleteNote(
+                                  notes.indexOf(filteredNotes[index]),
+                                ),
                               ),
                             ),
                           ),
