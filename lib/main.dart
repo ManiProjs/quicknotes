@@ -37,6 +37,7 @@ class _HomePageState extends State<HomePage> {
   final FocusNode _inputFocusNode = FocusNode();
   List<Map<String, dynamic>> notes = [];
   String searchQuery = '';
+  int _tabIndex = 1; // 0 = New note, 1 = Notes (default)
 
   Color selectedColor = const Color(0xFFD0E8FF);
 
@@ -148,123 +149,194 @@ class _HomePageState extends State<HomePage> {
     }).toList();
 
     return Scaffold(
-      appBar: AppBar(title: const Text("Quick Notes")),
-      body: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
+      appBar: AppBar(title: Text(_tabIndex == 0 ? "New Note" : "Quick Notes")),
+
+      body: SizedBox.expand(
+        child: Row(
           children: [
-            TextField(
-              decoration: const InputDecoration(
-                hintText: 'Search notes...',
-                prefixIcon: Icon(Icons.search),
-                border: OutlineInputBorder(),
-              ),
-              onChanged: (value) {
+            NavigationRail(
+              extended: true,
+              selectedIndex: _tabIndex,
+              onDestinationSelected: (index) {
                 setState(() {
-                  searchQuery = value;
+                  _tabIndex = index;
                 });
               },
-            ),
-            const SizedBox(height: 12),
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: palette.map((c) {
-                  return GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        selectedColor = c;
-                      });
-                    },
-                    child: Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 4),
-                      width: 28,
-                      height: 28,
-                      decoration: BoxDecoration(
-                        color: c,
-                        shape: BoxShape.circle,
-                        border: selectedColor == c
-                            ? Border.all(color: Colors.black54, width: 2)
-                            : null,
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: Shortcuts(
-                    shortcuts: {
-                      SingleActivator(LogicalKeyboardKey.enter, shift: true):
-                          const ActivateIntent(),
-                    },
-                    child: Actions(
-                      actions: {
-                        ActivateIntent: CallbackAction<ActivateIntent>(
-                          onInvoke: (_) {
-                            addNote();
-                            return null;
-                          },
-                        ),
-                      },
-                      child: TextField(
-                        controller: _controller,
-                        focusNode: _inputFocusNode,
-                        keyboardType: TextInputType.multiline,
-                        textInputAction: TextInputAction.newline,
-                        minLines: 1,
-                        maxLines: 5,
-                        decoration: const InputDecoration(
-                          hintText: "Write a note...",
-                          border: OutlineInputBorder(),
-                          alignLabelWithHint: true,
-                        ),
-                      ),
-                    ),
-                  ),
+              useIndicator: true,
+              indicatorColor: Theme.of(context).colorScheme.secondaryContainer,
+              destinations: const [
+                NavigationRailDestination(
+                  icon: Icon(Icons.add),
+                  selectedIcon: Icon(Icons.add_circle),
+                  label: Text("New note"),
                 ),
-                const SizedBox(width: 8),
-                ElevatedButton(onPressed: addNote, child: const Text("+")),
+                NavigationRailDestination(
+                  icon: Icon(Icons.notes_outlined),
+                  selectedIcon: Icon(Icons.notes),
+                  label: Text("Notes"),
+                ),
               ],
             ),
 
-            const SizedBox(height: 12),
+            const VerticalDivider(width: 1, thickness: 1),
 
             Expanded(
-              child: filteredNotes.isEmpty
-                  ? const Center(child: Text("No notes yet 💤"))
-                  : ListView.builder(
-                      itemCount: filteredNotes.length,
-                      itemBuilder: (context, index) {
-                        return Dismissible(
-                          key: Key(
-                            filteredNotes[index]['text'] + index.toString(),
-                          ),
-                          onDismissed: (_) =>
-                              deleteNote(notes.indexOf(filteredNotes[index])),
-                          child: Card(
-                            color: Color(filteredNotes[index]['color']),
-                            child: ListTile(
-                              textColor: Theme.of(
-                                context,
-                              ).colorScheme.onSecondaryContainer,
-                              title: Text(filteredNotes[index]['text']),
-                              onTap: () =>
-                                  editNote(notes.indexOf(filteredNotes[index])),
-                              trailing: IconButton(
-                                icon: const Icon(Icons.delete),
-                                onPressed: () => deleteNote(
-                                  notes.indexOf(filteredNotes[index]),
-                                ),
-                              ),
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: _tabIndex == 0
+                    ? Column(
+                        children: [
+                          SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: Row(
+                              children: palette.map((c) {
+                                return GestureDetector(
+                                  onTap: () {
+                                    setState(() {
+                                      selectedColor = c;
+                                    });
+                                  },
+                                  child: Container(
+                                    margin: const EdgeInsets.symmetric(
+                                      horizontal: 4,
+                                    ),
+                                    width: 28,
+                                    height: 28,
+                                    decoration: BoxDecoration(
+                                      color: c,
+                                      shape: BoxShape.circle,
+                                      border: selectedColor == c
+                                          ? Border.all(
+                                              color: Colors.black54,
+                                              width: 2,
+                                            )
+                                          : null,
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
                             ),
                           ),
-                        );
-                      },
-                    ),
+
+                          const SizedBox(height: 12),
+
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Shortcuts(
+                                  shortcuts: {
+                                    SingleActivator(
+                                      LogicalKeyboardKey.enter,
+                                      shift: true,
+                                    ): const ActivateIntent(),
+                                  },
+                                  child: Actions(
+                                    actions: {
+                                      ActivateIntent:
+                                          CallbackAction<ActivateIntent>(
+                                            onInvoke: (_) {
+                                              addNote();
+                                              return null;
+                                            },
+                                          ),
+                                    },
+                                    child: TextField(
+                                      controller: _controller,
+                                      focusNode: _inputFocusNode,
+                                      keyboardType: TextInputType.multiline,
+                                      textInputAction: TextInputAction.newline,
+                                      minLines: 1,
+                                      maxLines: 5,
+                                      decoration: const InputDecoration(
+                                        hintText: "Write a note...",
+                                        border: OutlineInputBorder(),
+                                        alignLabelWithHint: true,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+
+                              const SizedBox(width: 8),
+
+                              ElevatedButton(
+                                onPressed: addNote,
+                                child: const Text("+"),
+                              ),
+                            ],
+                          ),
+                        ],
+                      )
+                    : Column(
+                        children: [
+                          TextField(
+                            decoration: const InputDecoration(
+                              hintText: 'Search notes...',
+                              prefixIcon: Icon(Icons.search),
+                              border: OutlineInputBorder(),
+                            ),
+                            onChanged: (value) {
+                              setState(() {
+                                searchQuery = value;
+                              });
+                            },
+                          ),
+
+                          const SizedBox(height: 12),
+
+                          Expanded(
+                            child: filteredNotes.isEmpty
+                                ? Center(
+                                    child: Text(
+                                      searchQuery.isEmpty
+                                          ? "No notes yet 💤"
+                                          : "No notes found for \"$searchQuery\" 🔍",
+                                    ),
+                                  )
+                                : ListView.builder(
+                                    itemCount: filteredNotes.length,
+                                    itemBuilder: (context, index) {
+                                      return Dismissible(
+                                        key: Key(
+                                          filteredNotes[index]['text'] +
+                                              index.toString(),
+                                        ),
+                                        onDismissed: (_) => deleteNote(
+                                          notes.indexOf(filteredNotes[index]),
+                                        ),
+                                        child: Card(
+                                          color: Color(
+                                            filteredNotes[index]['color'],
+                                          ),
+                                          child: ListTile(
+                                            textColor: Theme.of(
+                                              context,
+                                            ).colorScheme.onSecondaryContainer,
+                                            title: Text(
+                                              filteredNotes[index]['text'],
+                                            ),
+                                            onTap: () => editNote(
+                                              notes.indexOf(
+                                                filteredNotes[index],
+                                              ),
+                                            ),
+                                            trailing: IconButton(
+                                              icon: const Icon(Icons.delete),
+                                              onPressed: () => deleteNote(
+                                                notes.indexOf(
+                                                  filteredNotes[index],
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                          ),
+                        ],
+                      ),
+              ),
             ),
           ],
         ),
